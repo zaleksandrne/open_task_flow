@@ -25,6 +25,7 @@ def get_tracker_issues_request(access_token, org_id):
 def get_tracker_issues():
     access_token = os.environ["YA_TOKEN"]
     org_id = os.environ["XORG_ID"]
+    issue_tag = os.environ["ISSUE_TAG"]
 
     issues = get_tracker_issues_request(access_token, org_id)
 
@@ -37,7 +38,7 @@ def get_tracker_issues():
 
     for issue in issues:
         if (
-            "frontend" in issue.get("tags", [])
+            issue_tag in issue.get("tags", [])
             and issue.get("status", {}).get("display") in allowed_statuses
         ):
             result["issues"].append({
