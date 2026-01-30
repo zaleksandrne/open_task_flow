@@ -1,4 +1,4 @@
-import os, time, json, requests, subprocess, re
+import os, time, requests, subprocess, re
 from get_tasks import get_tracker_issues
 from dotenv import load_dotenv
 from unidecode import unidecode
@@ -8,16 +8,26 @@ load_dotenv()
 
 TOKEN = os.environ["TG_TOKEN"]
 CHAT_ID = os.environ["TG_CHAT_ID"]
-cwd = os.environ["TARGET_REPO"]
+cwd = 'target_repo/' + os.environ["TARGET_REPO"]
 
 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
 # get tasks list
 tasks = get_tracker_issues()["issues"]
-tasks_txt = json.dumps(tasks, ensure_ascii=False, indent=2)
-requests.post(url, data={"chat_id": CHAT_ID, "text": "Открытые задачи:\n\n" + tasks_txt})
-if len(tasks) == 0:
+
+if not tasks:
     exit(0)
+
+lines = ["Открытые задачи:\n"]
+for i, task in enumerate(tasks, 1):
+    lines.append(f"{i}. {task['key']}: {task['summary']}")
+
+tasks_txt = "\n".join(lines)
+
+requests.post(url, data={
+    "chat_id": CHAT_ID,
+    "text": tasks_txt
+})
 
 # get first task to work
 time.sleep(1)
@@ -33,8 +43,6 @@ summary = task["summary"]
 
 prompt = f"""
 Ты фронтенд-разработчик.
-
-Репозиторий: frontend
 
 Задача из трекера:
 {summary}
@@ -62,7 +70,7 @@ subprocess.run(
 
 # commit and push
 name = re.sub(r'[^a-z0-9\-]', '-', unidecode(summary.lower()))
-branch_name = f"features/ticket-{task['key']}-{name}"
+branch_name = f"features/{task['key']}/{name}"
 
 subprocess.run(["git", "checkout", "-b", branch_name], cwd=cwd, check=True)
 subprocess.run(["git", "add", "."], cwd=cwd, check=True)
@@ -88,6 +96,12 @@ subprocess.run(["git", "checkout", "staging"], cwd=cwd, check=True)
 
 requests.post(url, data={
     "chat_id": CHAT_ID,
-    "text": f"Merge request для задачи {task['key']} создан в ветку staging"
+    "text": f"Мерж реквест для задачи {task['key']} создан в ветку staging"
+})
+
+# TODO post to tracker
+requests.post(url, data={
+    "chat_id": CHAT_ID,
+    "text": f"Задача {task['key']} перенесена на ревью"
 })
 
